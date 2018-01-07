@@ -7,8 +7,8 @@
 using CppAD::AD;
 
 // TODO: Set the timestep length and duration
-size_t N = 25;
-double dt = 0.05;
+size_t N = 10;
+double dt = 0.12;
 
 // This value assumes the model presented in the classroom is used.
 //
@@ -22,10 +22,18 @@ double dt = 0.05;
 // This is the length from front to CoG that has a similar radius.
 const double Lf = 2.67;
 
-
 // Both the reference cross track and orientation errors are 0.
 // The reference velocity is set to 40 mph.
-const double ref_v = 5;
+const double ref_v = 0.44704 * 80;
+
+// Define weights for different terms of objective
+const double cte_weight = 2000;
+const double epsi_weight = 2000;
+const double v_weight = 1;
+const double delta_weight = 400;
+const double a_weight = 8;
+const double ddelta_weight = 20000;
+const double da_weight = 100;
 
 
 // The solver takes all the state variables and actuator
@@ -55,24 +63,26 @@ class FG_eval {
     size_t t;
     fg[0] = 0;
 
+
+
     // The part of the cost based on the reference state.
     for (t = 0; t < N; t++) {
-      fg[0] += CppAD::pow(vars[cte_start + t], 2);
-      fg[0] += CppAD::pow(vars[epsi_start + t], 2);
-      fg[0] += CppAD::pow(vars[v_start + t] - ref_v, 2);
+      fg[0] += cte_weight * CppAD::pow(vars[cte_start + t], 2);
+      fg[0] += epsi_weight * CppAD::pow(vars[epsi_start + t], 2);
+      fg[0] += v_weight * CppAD::pow(vars[v_start + t] - ref_v, 2);
     }
 
 
     // Minimize the use of actuators.
     for (t = 0; t < N - 1; t++) {
-      fg[0] += CppAD::pow(vars[delta_start + t], 2);
-      fg[0] += CppAD::pow(vars[a_start + t], 2);
+      fg[0] += delta_weight * CppAD::pow(vars[delta_start + t], 2);
+      fg[0] += a_weight * CppAD::pow(vars[a_start + t], 2);
     }
 
     // Minimize the value gap between sequential actuations.
     for (t = 0; t < N - 2; t++) {
-      fg[0] += CppAD::pow(vars[delta_start + t + 1] - vars[delta_start + t], 2);
-      fg[0] += CppAD::pow(vars[a_start + t + 1] - vars[a_start + t], 2);
+      fg[0] += ddelta_weight * CppAD::pow(vars[delta_start + t + 1] - vars[delta_start + t], 2);
+      fg[0] += da_weight * CppAD::pow(vars[a_start + t + 1] - vars[a_start + t], 2);
     }
 
     // Initial constraints
@@ -158,7 +168,11 @@ MPC::MPC() {
         << "epsi" << ","
         << "fp" << ","
         << "v" << ","
-        << "cte" << std::endl;
+        << "cte" << ","
+        << "steering" << ","
+        << "throttle" << ","
+        << "curvature"
+        << std::endl;
   }
 }
 MPC::~MPC() {
@@ -194,15 +208,6 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   double v = state[3];
   double cte = state[4];
   double epsi = state[5];
-
-  // Set the initial variable values
-  vars[x_start] = x;
-  vars[y_start] = y;
-  vars[psi_start] = psi;
-  vars[v_start] = v;
-  vars[cte_start] = cte;
-  vars[epsi_start] = epsi;
-
 
   Dvector vars_lowerbound(n_vars);
   Dvector vars_upperbound(n_vars);
@@ -308,6 +313,7 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
     res.push_back(solution.x[x_start + i]);
     res.push_back(solution.x[y_start + i]);
   }
+
 
   return res;
 }

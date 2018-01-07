@@ -98,32 +98,65 @@ int main() {
           * Both are in between [-1, 1].
           *
           */
-          double steer_value;
-          double throttle_value;
+          double steer_value = j[1]["steering_angle"];
+          double throttle_value = j[1]["throttle"];
 
-          vector<double> ptsx_car = j[1]["ptsx"];
-          vector<double> ptsy_car = j[1]["ptsy"];
+          // flip angle sign
+          steer_value = - steer_value;
+
+          // 1mph = 0.44704 m/s
+          v = 0.44704 * v;
+
+          // latency in ms
+          const double latency_sec = 0.1;
+          //
+          const double Lf = 2.67;
+
+
+          double px_pred = px + v * cos(psi) * latency_sec;
+          double py_pred = py + v * sin(psi) * latency_sec;
+          double psi_pred = psi + v * steer_value / Lf * latency_sec;
+          double v_pred = v + throttle_value * latency_sec;
+
+          vector<double> ptsx_car(ptsx.size());
+          vector<double> ptsy_car(ptsx.size());
 
           // coordinate trans
           for(size_t i = 0; i < ptsx.size(); i++){
             // shift by car position
-            double dx = ptsx[i] - px;
-            double dy = ptsy[i] - py;
+            double dx = ptsx[i] - px_pred;
+            double dy = ptsy[i] - py_pred;
             // rotate -psi
-            ptsx_car[i] = dx*cos(-psi) - dy*sin(-psi);
-            ptsy_car[i] = dx*sin(-psi) + dy*cos(-psi);
+            ptsx_car[i] = dx*cos(-psi_pred) - dy*sin(-psi_pred);
+            ptsy_car[i] = dx*sin(-psi_pred) + dy*cos(-psi_pred);
           }
 
           Eigen::VectorXd coeffs = polyfit(Eigen::Map<Eigen::VectorXd>(ptsx_car.data(), ptsx_car.size()),
                                            Eigen::Map<Eigen::VectorXd>(ptsy_car.data(), ptsy_car.size()),
                                            3);
 
-
-          double fp = 3*coeffs[3]*pow(px, 2) + 2*coeffs[2]*px + coeffs[1];
+          // fp = 3 * coeffs[3] * x**2 + 2*coeffs[2]*x + coeffs[1]
+          // but here x = 0.
+          double fp = coeffs[1];
+          double fp2 = 2*coeffs[2];
           double psi_des = atan(fp);
           double epsi = -psi_des;
           double eval_y = polyeval(coeffs, 0);
           double cte = eval_y;
+
+          cout << "coeffs " << coeffs << endl;
+
+          Eigen::VectorXd state(6);
+          state << 0, 0, 0, v_pred, cte, epsi;
+
+          vector<double> res;
+          res = mpc.Solve(state, coeffs);
+
+          steer_value = - res[0] / deg2rad(25);
+          throttle_value = res[1];
+
+          // for analysis
+          double curvature = fp2 / pow(1 + fp*fp, 1.5);
 
           mpc.ofs  << px << ","
                    << py << ","
@@ -133,19 +166,11 @@ int main() {
                    << epsi << ","
                    << fp << ","
                    << v << ","
-                   << cte <<  endl;
-
-          cout << "coeffs " << coeffs << endl;
-
-          Eigen::VectorXd state(6);
-          state << 0, 0, 0, v, cte, epsi;
-
-          vector<double> res;
-          res = mpc.Solve(state, coeffs);
-
-          steer_value = res[0] / deg2rad(25);
-          throttle_value = 0.2;//res[7];
-
+                   << cte <<  ","
+                   << steer_value << ","
+                   << throttle_value  << ","
+                   << curvature
+                   << endl;
 
           json msgJson;
           // NOTE: Remember to divide by deg2rad(25) before you send the steering value back.
@@ -159,8 +184,8 @@ int main() {
 
           size_t N = (res.size() - 2) / 2;
           for(size_t i = 0; i < N; i++){
-            mpc_x_vals.push_back(res[2 + i]);
-            mpc_y_vals.push_back(res[2 + N + i]);
+            mpc_x_vals.push_back(res[2 + 2 * i]);
+            mpc_y_vals.push_back(res[2 + 2 * i + 1]);
           }
 
           //.. add (x,y) points to list here, points are in reference to the vehicle's coordinate system
@@ -172,6 +197,7 @@ int main() {
           //Display the waypoints/reference line
           vector<double> next_x_vals;
           vector<double> next_y_vals;
+
 
           for(size_t i=0 ;i < ptsx.size(); i++){
             next_x_vals.push_back(ptsx_car[i]);

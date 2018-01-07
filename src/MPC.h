@@ -3,7 +3,7 @@
 
 #include <vector>
 #include "Eigen-3.3/Eigen/Core"
-
+#include <fstream>
 using namespace std;
 
 class MPC {
@@ -11,6 +11,8 @@ class MPC {
   MPC();
 
   virtual ~MPC();
+
+  std::ofstream ofs;
 
   // Solve the model given an initial state and polynomial coefficients.
   // Return the first actuatotions.

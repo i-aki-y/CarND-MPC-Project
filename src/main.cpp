@@ -112,7 +112,7 @@ int main() {
           //
           const double Lf = 2.67;
 
-
+          // predict next car states
           double px_pred = px + v * cos(psi) * latency_sec;
           double py_pred = py + v * sin(psi) * latency_sec;
           double psi_pred = psi + v * steer_value / Lf * latency_sec;
@@ -121,12 +121,12 @@ int main() {
           vector<double> ptsx_car(ptsx.size());
           vector<double> ptsy_car(ptsx.size());
 
-          // coordinate trans
+          // coordinate transform is applied to the predicted states
           for(size_t i = 0; i < ptsx.size(); i++){
             // shift by car position
             double dx = ptsx[i] - px_pred;
             double dy = ptsy[i] - py_pred;
-            // rotate -psi
+            // rotate (- psi)
             ptsx_car[i] = dx*cos(-psi_pred) - dy*sin(-psi_pred);
             ptsy_car[i] = dx*sin(-psi_pred) + dy*cos(-psi_pred);
           }
@@ -135,10 +135,9 @@ int main() {
                                            Eigen::Map<Eigen::VectorXd>(ptsy_car.data(), ptsy_car.size()),
                                            3);
 
-          // fp = 3 * coeffs[3] * x**2 + 2*coeffs[2]*x + coeffs[1]
+          // fp = 3 * coeffs[3] * x^2 + 2*coeffs[2]*x + coeffs[1]
           // but here x = 0.
           double fp = coeffs[1];
-          double fp2 = 2*coeffs[2];
           double psi_des = atan(fp);
           double epsi = -psi_des;
           double eval_y = polyeval(coeffs, 0);
@@ -152,10 +151,12 @@ int main() {
           vector<double> res;
           res = mpc.Solve(state, coeffs);
 
+          // flip the angle sign
           steer_value = - res[0] / deg2rad(25);
           throttle_value = res[1];
 
           // for analysis
+          double fp2 = 2*coeffs[2];
           double curvature = fp2 / pow(1 + fp*fp, 1.5);
 
           mpc.ofs  << px << ","

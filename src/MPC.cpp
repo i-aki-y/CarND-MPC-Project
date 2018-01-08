@@ -8,7 +8,7 @@ using CppAD::AD;
 
 // TODO: Set the timestep length and duration
 size_t N = 10;
-double dt = 0.12;
+double dt = 0.15;
 
 // This value assumes the model presented in the classroom is used.
 //
@@ -24,7 +24,7 @@ const double Lf = 2.67;
 
 // Both the reference cross track and orientation errors are 0.
 // The reference velocity is set to 40 mph.
-const double ref_v = 0.44704 * 80;
+const double ref_v = 0.44704 * 90;
 
 // Define weights for different terms of objective
 const double cte_weight = 2000;
@@ -32,7 +32,7 @@ const double epsi_weight = 2000;
 const double v_weight = 1;
 const double delta_weight = 400;
 const double a_weight = 8;
-const double ddelta_weight = 20000;
+const double ddelta_weight = 40000;
 const double da_weight = 100;
 
 

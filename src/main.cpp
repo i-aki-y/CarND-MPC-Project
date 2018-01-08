@@ -41,6 +41,8 @@ double polyeval(Eigen::VectorXd coeffs, double x) {
   return result;
 }
 
+
+
 // Fit a polynomial.
 // Adapted from
 // https://github.com/JuliaMath/Polynomials.jl/blob/master/src/Polynomials.jl#L676-L716
@@ -63,6 +65,21 @@ Eigen::VectorXd polyfit(Eigen::VectorXd xvals, Eigen::VectorXd yvals,
   auto Q = A.householderQr();
   auto result = Q.solve(yvals);
   return result;
+}
+
+
+void TransformCarCoordinate(double car_x, double car_y, double psi,
+                            const vector<double>& xvec_in, const vector<double>& yvec_in,
+                            vector<double>& xvec_out, vector<double>& yvec_out){
+
+  for(size_t i = 0; i < xvec_in.size(); i++){
+    // shift by car position
+    double dx = xvec_in[i] - car_x;
+    double dy = yvec_in[i] - car_y;
+    // rotate (- psi)
+    xvec_out[i] = dx*cos(-psi) - dy*sin(-psi);
+    yvec_out[i] = dx*sin(-psi) + dy*cos(-psi);
+  }
 }
 
 int main() {
@@ -108,7 +125,7 @@ int main() {
           v = 0.44704 * v;
 
           // latency in ms
-          const double latency_sec = 0.1;
+          const double latency_sec = 0.12;
           //
           const double Lf = 2.67;
 
@@ -122,14 +139,10 @@ int main() {
           vector<double> ptsy_car(ptsx.size());
 
           // coordinate transform is applied to the predicted states
-          for(size_t i = 0; i < ptsx.size(); i++){
-            // shift by car position
-            double dx = ptsx[i] - px_pred;
-            double dy = ptsy[i] - py_pred;
-            // rotate (- psi)
-            ptsx_car[i] = dx*cos(-psi_pred) - dy*sin(-psi_pred);
-            ptsy_car[i] = dx*sin(-psi_pred) + dy*cos(-psi_pred);
-          }
+          TransformCarCoordinate(px_pred, py_pred, psi_pred,
+                                 ptsx, ptsy,
+                                 ptsx_car, ptsy_car);
+
 
           Eigen::VectorXd coeffs = polyfit(Eigen::Map<Eigen::VectorXd>(ptsx_car.data(), ptsx_car.size()),
                                            Eigen::Map<Eigen::VectorXd>(ptsy_car.data(), ptsy_car.size()),

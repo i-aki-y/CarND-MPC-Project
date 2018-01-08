@@ -7,8 +7,8 @@
 using CppAD::AD;
 
 // TODO: Set the timestep length and duration
-size_t N = 10;
-double dt = 0.15;
+const size_t N = 8;
+const double dt = 0.15;
 
 // This value assumes the model presented in the classroom is used.
 //
@@ -24,11 +24,11 @@ const double Lf = 2.67;
 
 // Both the reference cross track and orientation errors are 0.
 // The reference velocity is set to 40 mph.
-const double ref_v = 0.44704 * 90;
+const double ref_v = 0.44704 * 80;
 
 // Define weights for different terms of objective
-const double cte_weight = 2000;
-const double epsi_weight = 2000;
+const double cte_weight = 1000;
+const double epsi_weight = 3000;
 const double v_weight = 1;
 const double delta_weight = 400;
 const double a_weight = 8;
@@ -202,12 +202,12 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
     vars[i] = 0;
   }
 
-  double x = state[0];
-  double y = state[1];
-  double psi = state[2];
-  double v = state[3];
-  double cte = state[4];
-  double epsi = state[5];
+  const double x = state[0];
+  const double y = state[1];
+  const double psi = state[2];
+  const double v = state[3];
+  const double cte = state[4];
+  const double epsi = state[5];
 
   Dvector vars_lowerbound(n_vars);
   Dvector vars_upperbound(n_vars);
